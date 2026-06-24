@@ -1,0 +1,11 @@
+# GPU benchmark dependencies (CUDA 12.1 compatible)
+torch==2.4.1 --index-url https://download.pytorch.org/whl/cu121
+transformers==4.44.2
+sentence-transformers==3.0.1
+numpy==1.26.4
+bitsandbytes==0.43.3
+accelerate==0.34.2
+faiss-cpu==1.8.0
+matplotlib==3.9.2
+huggingface-hub>=0.24.0
+safetensors>=0.4.0

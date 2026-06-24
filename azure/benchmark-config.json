@@ -1,0 +1,15 @@
+{
+    "embedding_model": "sentence-transformers/all-MiniLM-L6-v2",
+    "llm_model": "mistralai/Mistral-7B-Instruct-v0.2",
+    "use_4bit": true,
+    "max_context_tokens": 8192,
+    "token_budget_ratio": 0.8,
+    "decay_factor": 0.95,
+    "sliding_window_messages": 4,
+    "ltm_top_k": 5,
+    "summarization_threshold_tokens": 512,
+    "random_seed": 42,
+    "results_path": "results/poc_results.csv",
+    "max_new_tokens": 256,
+    "stm_capacity": 200
+}
