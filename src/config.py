@@ -34,7 +34,7 @@ class Config:
 
     # Scoring
     decay_factor: float = 0.95
-    large_age_offset: int = 1000
+    large_age_offset: int = 50  # LTM treated as ~50 turns older than conversation end
 
     # Sliding window
     sliding_window_messages: int = 4

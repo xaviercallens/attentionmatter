@@ -1,41 +1,52 @@
 # TODO
 
-## Immediate Priority
+## Phase 2: Scale & Validate (Current Focus)
 
-- [ ] Initialize git repo and push to GitHub
-- [ ] Run `./azure/backup.sh` to create initial archive
-- [ ] Provision Azure VM: `./azure/provision.sh`
-- [ ] Execute full GPU benchmark: `./azure/deploy.sh docker`
-- [ ] Download and review results
-- [ ] Teardown Azure resources: `./azure/teardown.sh`
+### High Priority
 
-## Post-Benchmark
+- [ ] Create scenario generator for 500+ turn conversations
+- [ ] Add 3 scenarios at 500, 750, and 1000 turns
+- [ ] Implement GPT-2 tokenizer as offline fallback (no auth needed)
+- [ ] Run full benchmark showing 30-50% reduction at default budget
+- [ ] Validate with real Mistral-7B answers on Azure
 
-- [ ] Analyze decay factor impact across scenarios
-- [ ] Generate bar charts (token count vs quality per strategy)
-- [ ] Write summary findings document
-- [ ] Tag v0.1.0 release on GitHub
-- [ ] Archive final results: `./azure/backup.sh`
+### Medium Priority
 
-## Code Improvements
+- [ ] Add decay factor sweep (0.92, 0.94, 0.96, 0.98) for long conversations
+- [ ] Add latency timing to ExperimentRunner (ms per scoring pass)
+- [ ] Generate matplotlib charts (token count vs quality per strategy)
+- [ ] Add "regression" scenario (contextually important but low cosine similarity)
+- [ ] Add scenario with code snippets and structured data
+
+### Lower Priority
+
+- [ ] Set up GitHub Actions CI (run --dummy-llm on push)
+- [ ] Add `--output-format json` option to reporter
+- [ ] Cache embeddings to disk (avoid recomputing across runs)
+- [ ] Pre-bake Azure VM image with NVIDIA drivers (avoid DKMS compile)
+- [ ] Tag v0.2.0 release with scale results
+
+## Infrastructure Improvements
+
+- [ ] Use `az vm run-command` in deploy.sh as SSH fallback
+- [ ] Add budget alert ($5 threshold) on Azure subscription
+- [ ] Create Terraform alternative to shell provisioning scripts
+- [ ] Support Azure Container Instances for serverless benchmark
+
+## Code Quality
 
 - [ ] Add unit tests for scoring math (cosine × decay at various ages)
-- [ ] Add integration test with stub LLM verifying selection behavior
-- [ ] Cache embeddings to disk (avoid recomputing across runs)
-- [ ] Support loading config from `azure/benchmark-config.json` via CLI
-- [ ] Add `--output-format json` option to reporter
+- [ ] Add integration test (stub LLM + deterministic embeddings)
+- [ ] Add type annotations and mypy strict mode
 - [ ] Parallelize embedding computation for large conversations
+- [ ] Add progress bar for long scenarios (tqdm)
 
-## Scenarios
+## Documentation
 
-- [ ] Add scenario with 500+ turns to stress-test at scale
-- [ ] Add scenario where query is ambiguous (tests scorer robustness)
-- [ ] Add scenario with multiple sessions (full cross-session memory test)
-- [ ] Add scenario with code/structured data in context
-
-## Infrastructure
-
-- [ ] Add GitHub Actions CI (run `--dummy-llm` on every push)
-- [ ] Create Terraform alternative to shell provisioning scripts
-- [ ] Add cost monitoring/alerting for Azure VM uptime
-- [ ] Support Azure Container Instances for serverless benchmark runs
+- [x] memory.md — current state and achievements
+- [x] goals.md — phase objectives with metrics
+- [x] ll.md — lessons learned (17 items)
+- [x] roadmap.md — 5-phase plan
+- [x] BENCHMARK.md — Azure instructions
+- [x] results/azure_benchmark_results.md — findings
+- [ ] Add CONTRIBUTING.md if opening to team

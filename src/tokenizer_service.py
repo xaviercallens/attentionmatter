@@ -50,6 +50,24 @@ class DummyTokenizerService(TokenizerService):
         return int(len(words) * 1.3)
 
 
+class GPT2TokenizerService(TokenizerService):
+    """
+    Uses GPT-2 tokenizer for realistic token counts without needing Mistral access.
+    GPT-2 tokenizer is small (~1MB), widely cached, and doesn't require auth.
+    Token counts are within ~5-10% of Mistral for English text.
+    """
+
+    def __init__(self, cfg: Config | None = None) -> None:
+        self._model_name = "gpt2"
+        self._tokenizer = None
+
+    def _load_tokenizer(self):
+        if self._tokenizer is None:
+            from transformers import AutoTokenizer
+            self._tokenizer = AutoTokenizer.from_pretrained("gpt2")
+        return self._tokenizer
+
+
 def count_tokens(text: str, cfg: Config | None = None) -> int:
     """Module-level convenience for quick token counting."""
     if cfg is None:

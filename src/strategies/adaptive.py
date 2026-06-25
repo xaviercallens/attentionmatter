@@ -58,13 +58,16 @@ class AdaptiveStrategy:
             ))
 
         # Add top-K LTM entries as candidates
+        # LTM entries are persistent knowledge — don't penalize by conversation length.
+        # They already passed relevance filtering (vector search top-K).
+        # Give them age=0 so only cosine similarity determines their score.
         ltm_records = memory.search_ltm(q_vec, self._cfg.ltm_top_k)
         for rec in ltm_records:
             candidates.append(Candidate(
                 text=f"[Memory]: {rec.text}",
                 ctype="memory",
                 embedding=rec.embedding,
-                age=len(stm) + self._cfg.large_age_offset,
+                age=0,  # no decay penalty for durable memories
                 turn=-1,  # memories don't have a turn; placed separately
             ))
 

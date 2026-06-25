@@ -31,7 +31,7 @@ from src.strategies.adaptive import AdaptiveStrategy
 from src.strategies.a3tk_heuristic import A3TKHeuristicStrategy
 from src.strategies.no_pruning import NoPruningStrategy
 from src.strategies.sliding_window import SlidingWindowStrategy
-from src.tokenizer_service import DummyTokenizerService, TokenizerService
+from src.tokenizer_service import DummyTokenizerService, GPT2TokenizerService, TokenizerService
 
 
 def parse_args() -> argparse.Namespace:
@@ -67,6 +67,14 @@ def parse_args() -> argparse.Namespace:
         help="Use real sentence-transformer embeddings (requires model download). "
              "Combines with --dummy-llm to test scoring without GPU."
     )
+    parser.add_argument(
+        "--long-scenarios", action="store_true",
+        help="Include 500/750/1000-turn scenarios for scale testing."
+    )
+    parser.add_argument(
+        "--gpt2-tokenizer", action="store_true",
+        help="Use GPT-2 tokenizer for realistic token counts (small download, no auth)."
+    )
     return parser.parse_args()
 
 
@@ -94,7 +102,7 @@ def main() -> None:
             print(f"  {field_name}: {getattr(cfg, field_name)}")
         print(f"  token_budget (derived): {cfg.token_budget}")
         print()
-        scenarios = load_scenarios()
+        scenarios = load_scenarios(include_long=args.long_scenarios)
         print(f"=== Scenarios ({len(scenarios)}) ===")
         for s in scenarios:
             print(f"  {s.id}: {s.description}")
@@ -108,17 +116,25 @@ def main() -> None:
     print("Initializing services...")
     if args.dummy_llm:
         if args.real_embeddings:
-            print("Using real embeddings + DummyTokenizer + DummyLLM.")
+            print("Using real embeddings + DummyLLM.")
             embedding = EmbeddingService(cfg)
-            tokenizer = DummyTokenizerService(cfg)
         else:
-            print("Using DummyLLMClient + offline embedding/tokenizer (no network needed).")
+            print("Using DummyEmbedding + DummyLLM (fully offline).")
             embedding = DummyEmbeddingService(cfg)
+
+        if args.gpt2_tokenizer:
+            print("Using GPT-2 tokenizer (realistic counts).")
+            tokenizer = GPT2TokenizerService(cfg)
+        else:
             tokenizer = DummyTokenizerService(cfg)
+
         llm = DummyLLMClient(cfg)
     else:
         embedding = EmbeddingService(cfg)
-        tokenizer = TokenizerService(cfg)
+        if args.gpt2_tokenizer:
+            tokenizer = GPT2TokenizerService(cfg)
+        else:
+            tokenizer = TokenizerService(cfg)
         print(f"Loading LLM: {cfg.llm_model} (4-bit={cfg.use_4bit})...")
         llm = LLMClient(cfg)
 
@@ -131,7 +147,7 @@ def main() -> None:
     ]
 
     # --- Scenarios ---
-    scenarios = load_scenarios()
+    scenarios = load_scenarios(include_long=args.long_scenarios)
     print(f"Loaded {len(scenarios)} scenarios.")
 
     # --- Evaluator ---

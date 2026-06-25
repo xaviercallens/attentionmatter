@@ -90,6 +90,50 @@ With < 200 candidates per scenario, brute-force cosine similarity over numpy arr
 takes < 1ms. FAISS adds complexity without benefit until the memory store grows to
 10k+ entries. Premature optimization would have slowed development.
 
+## Azure & Infrastructure (NEW — Phase 1 Benchmark)
+
+### 13. Corporate SSH proxy blocks banner exchange
+
+TCP port 22 connects (nc succeeds) but sshd banner never arrives. Root cause:
+corporate proxy inspects/delays SSH traffic. **Workaround:** `az vm run-command`
+API executes scripts via Azure's control plane, bypassing SSH entirely. All benchmark
+execution was done this way.
+
+### 14. GPU quota auto-approval is fast
+
+Submitting `az quota create` for NCASv3_T4 (4 cores) auto-approved in ~30 seconds.
+No manual ticket needed for test subscriptions. Always try programmatic quota
+requests before filing portal requests.
+
+### 15. cloud-init is the right approach for VM setup
+
+Using `--custom-data @cloud-init.yaml` installs dependencies in the background
+without blocking sshd startup (unlike running apt-get via run-command which holds
+locks). The pattern: cloud-init for heavy setup, run-command for lightweight
+execution after setup completes.
+
+### 16. Run-command v2 API has UX quirks
+
+- `az vm run-command create` returns exit code 1 even on success (misleading).
+- Only one run-command per name at a time; delete old before creating new.
+- `az vm run-command invoke` (v1) ignores inline `--scripts` content on newer CLI
+  versions (runs "sample script" instead). Always use v2 `create` API.
+- Output is truncated at ~4KB. For larger outputs, write to a file and cat it
+  in a separate command.
+
+### 17. Token reduction scales predictably with conversation length
+
+| Turns | Budget Ratio | Reduction |
+|-------|-------------|-----------|
+| 5-15 | 0.80 | 0% (fits in budget) |
+| 53-66 | 0.80 | 0% (fits in budget) |
+| 101 | 0.80 | 17.4% |
+| 66 | 0.08 | 34.6% |
+| 101 | 0.08 | 56.0% |
+
+**Conclusion:** The algorithm works. To demonstrate 30-50% reduction at default
+budget, we need 300-500+ turn conversations — which is realistic for production.
+
 ## What We'd Do Differently
 
 - **Start with longer scenarios (500+ turns):** Would have demonstrated token
@@ -99,3 +143,6 @@ takes < 1ms. FAISS adds complexity without benefit until the memory store grows 
 - **Include a "regression" scenario:** Where the Adaptive strategy might fail — e.g.,
   the relevant info has low lexical similarity to the query but is contextually
   important. This would highlight the ceiling of cosine-based scoring.
+- **Use `az vm run-command` from the start:** Don't fight SSH in corporate envs.
+- **Pre-bake NVIDIA drivers in a custom image:** Avoids the 10-min DKMS compile
+  every time. Build once, snapshot, reuse.

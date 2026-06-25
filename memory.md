@@ -2,9 +2,11 @@
 
 ## Project State
 
-**Status:** PoC complete, validated locally, Azure benchmark infrastructure ready.  
-**Date:** 2025-06-24  
-**Branch:** main (pre-release)
+**Status:** Phase 1 complete. Azure benchmark validated. Starting Phase 2.  
+**Date:** 2026-06-25  
+**Branch:** main  
+**Repo:** https://github.com/xaviercallens/attentionmatter  
+**Release:** v0.1.0  
 
 ---
 
@@ -19,7 +21,7 @@
 
 ### 2. Token Reduction Demonstrated
 
-With real sentence-transformer embeddings (`all-MiniLM-L6-v2`):
+**Local (tight budget, real embeddings):**
 
 | Scenario | Reduction | Key Fact Preserved |
 |----------|-----------|-------------------|
@@ -27,8 +29,16 @@ With real sentence-transformer embeddings (`all-MiniLM-L6-v2`):
 | irrelevant_heavy (101 turns) | 56.0% | Yes |
 | preference_recall (53 turns) | 17.7% | Yes |
 
-- **100% key fact preservation** across all 7 scenarios.
+**Azure (default budget, real embeddings):**
+
+| Scenario | No-Pruning | Adaptive | Reduction |
+|----------|-----------|----------|-----------|
+| irrelevant_heavy (101 turns) | 1486 tokens | 1227 tokens | 17.4% |
+| Overall avg | 651 tokens | 614 tokens | 2.5% |
+
+- **100% key fact preservation** across all 7 scenarios in both environments.
 - Sliding-Window baseline fails on 6/7 scenarios (14.3% pass rate).
+- Reduction scales with conversation length and budget tightness.
 
 ### 3. Four Strategies Compared
 
@@ -36,28 +46,24 @@ With real sentence-transformer embeddings (`all-MiniLM-L6-v2`):
 |----------|---------|---------------|
 | No-Pruning | 100% pass | 0% (baseline) |
 | Sliding-Window | 14% pass | ~80% savings |
-| A3TK-Heuristic | 100% pass | ~0-5% savings |
-| **Adaptive (ours)** | **100% pass** | **30-56% savings** |
+| A3TK-Heuristic | 100% pass | ~3.5% savings |
+| **Adaptive (ours)** | **100% pass** | **2.5–56% savings** (depends on length/budget) |
 
-### 4. Infrastructure Ready
+### 4. Azure Benchmark Executed
 
-- **Dockerfile:** CUDA 12.1 + pre-downloaded embedding model.
-- **Azure scripts:** provision (V100 VM), deploy (rsync + docker), teardown.
-- **Benchmark automation:** 4 parameter configurations in a single `benchmark.sh`.
-- **Backup/Restore:** Azure Blob Storage archive with manifest and "latest" pointer.
-- **Fast restart:** restore Docker image + model caches from blob storage.
+- **VM:** Standard_NC4as_T4_v3 (T4 16GB, northeurope)
+- **Quota:** Auto-approved 0→4 cores in ~30s via `az quota create`
+- **SSH workaround:** Corporate proxy blocks SSH banner; used `az vm run-command` API
+- **Execution:** Cloned public repo, ran real embeddings benchmark via run-command
+- **Cost:** ~$0.40 (45 min VM uptime)
+- **Teardown:** Resource group deleted, $0 ongoing
 
-### 5. Modular, Extensible Architecture
+### 5. Infrastructure & DevOps
 
-```
-run_poc.py → ExperimentRunner → Strategy (4 impls) → LLMClient
-                              → MemoryManager (STM + LTM)
-                              → EmbeddingService
-                              → Evaluator → Reporter
-```
-
-- Strategies implement a shared Protocol — drop in new ones without code changes.
-- `DummyLLMClient` + `DummyEmbeddingService` enable full offline testing.
+- Public repo: https://github.com/xaviercallens/attentionmatter
+- Dockerfile (CUDA 12.1), cloud-init.yaml, provision/deploy/teardown scripts
+- Backup/restore to Azure Blob Storage with manifested archives
+- Offline testing mode (DummyLLM + DummyEmbedding + DummyTokenizer)
 
 ---
 
@@ -65,74 +71,69 @@ run_poc.py → ExperimentRunner → Strategy (4 impls) → LLMClient
 
 1. **Brute-force cosine similarity** over FAISS — justified by small data scale.
 2. **DummyTokenizerService** for offline mode — approximates tokens as words × 1.3.
-3. **Extractive summary fallback** in A3TK strategy — avoids LLM dependency for summarization.
-4. **Standard_NC6s_v3 (V100)** as default Azure VM — balance of cost ($3/hr) and capability.
-5. **Manifested archive** with latest pointer — enables restore without knowing timestamp.
+3. **Extractive summary fallback** in A3TK strategy — avoids LLM dependency.
+4. **Standard_NC4as_T4_v3** as Azure VM — cheapest GPU option ($0.53/hr).
+5. **az vm run-command** for execution — workaround for SSH proxy block.
+6. **Public repo** on GitHub — enables VM to clone without auth tokens.
 
 ---
 
 ## Known Limitations
 
-- Token reduction only manifests when conversations exceed the token budget. Small
-  conversations (< budget) show 0% reduction because everything fits.
-- DummyLLMClient uses regex fact extraction — works for PoC evaluation but does not
-  test actual LLM reasoning.
-- Real Mistral-7B tokenizer download blocked by corporate SSL proxy (local env
-  specific); works fine on Azure or with `SSL_CERT_FILE=""`.
-- A3TK-Heuristic currently shows minimal token savings because keyword scoring
-  preserves most messages — production version would be more aggressive.
+1. Token reduction only manifests when conversations exceed the token budget.
+2. DummyLLMClient uses regex fact extraction — does not test LLM reasoning.
+3. Corporate SSL proxy blocks model downloads locally (fix: `SSL_CERT_FILE=""`).
+4. SSH blocked by corporate network — all Azure VM interaction via run-command API.
+5. A3TK-Heuristic shows minimal savings (~3.5%) — keyword scoring too conservative.
+6. Current scenarios max at 101 turns — not enough to stress the default budget.
 
 ---
 
-## Next Actions
+## Next Actions (Phase 2)
 
-### Immediate (Before Azure Run)
+### Immediate
 
-- [ ] Initialize git repo, commit all code, push to GitHub.
-- [ ] Run `./azure/backup.sh` to archive current state.
-- [ ] Execute `./azure/provision.sh` → `./azure/deploy.sh docker` for full GPU run.
-- [ ] Collect real LLM results (Mistral-7B answers) and validate quality.
+- [x] ~~Azure benchmark executed~~
+- [ ] Add 500+ turn scenarios to demonstrate reduction at default budget
+- [ ] Implement real tokenizer fallback (GPT-2) for accurate token counts offline
+- [ ] Run with real LLM (Mistral-7B) on GPU for quality validation
 
-### Short-Term (Post Azure Run)
+### Short-Term
 
-- [ ] Analyze results: compare decay factor variants (0.90 vs 0.95 vs 1.0).
-- [ ] Generate final report with charts and findings.
-- [ ] Create GitHub release with results CSV and chart artifacts.
-- [ ] Tune: if reduction < 30%, try tighter `token_budget_ratio` or lower decay.
+- [ ] Generate comparison charts with matplotlib
+- [ ] Add GitHub Actions CI (run `--dummy-llm` on push)
+- [ ] Create v0.2.0 release with longer scenarios and Azure results
 
 ### Medium-Term (Production Integration)
 
-- [ ] Integrate relevance scorer into A3TK orchestrator as a plugin.
-- [ ] Replace brute-force similarity with FAISS for larger memory stores.
-- [ ] Add OpenAI Ada embeddings option for production (faster, API-based).
-- [ ] Benchmark with GPT-4.1 to measure production-grade quality impact.
-- [ ] Implement dynamic budget: adjust `token_budget_ratio` based on query complexity.
+- [ ] Package relevance scorer as standalone Python module
+- [ ] Integrate into A3TK orchestrator's context assembly pipeline
+- [ ] Replace brute-force with FAISS for larger memory stores
+- [ ] Benchmark with GPT-4.1
 
 ### Long-Term (Research)
 
-- [ ] Train a small classifier for relevance scoring (replace cosine + decay).
-- [ ] Explore trainable ALiBi-style biases (fine-tune on conversation data).
-- [ ] Test with 128k+ context models — measure if pruning still helps.
-- [ ] Multi-modal memory scoring (images, code blocks, structured data).
+- [ ] Train a learned relevance classifier
+- [ ] Explore trainable ALiBi-style biases
+- [ ] Test with 128k+ context models
 
 ---
 
 ## Quick Restart Guide
 
 ```bash
-# From scratch (no Azure state)
+# Full offline test (no network)
 python run_poc.py --dummy-llm --no-chart
 
-# With real embeddings (requires model download)
+# Real embeddings, no GPU
 SSL_CERT_FILE="" python run_poc.py --dummy-llm --real-embeddings
 
-# Restore from Azure archive
-./azure/restore.sh
-python run_poc.py --dummy-llm --real-embeddings
+# Tight budget (demonstrates reduction)
+SSL_CERT_FILE="" python run_poc.py --dummy-llm --real-embeddings --token-budget-ratio 0.15
 
-# Full Azure GPU benchmark
+# Azure GPU benchmark
 ./azure/provision.sh
-./azure/deploy.sh docker
+# (use az vm run-command for execution due to SSH proxy)
 ./azure/teardown.sh
 ```
 
@@ -151,5 +152,6 @@ python run_poc.py --dummy-llm --real-embeddings
 | `azure/backup.sh` | Archive to blob storage |
 | `azure/restore.sh` | Restore from blob storage |
 | `azure/teardown.sh` | Delete Azure resources |
-| `results/poc_results.csv` | Latest run results |
-| `BENCHMARK.md` | Azure instructions |
+| `azure/cloud-init.yaml` | VM auto-setup |
+| `results/azure_benchmark_results.md` | Azure run findings |
+| `BENCHMARK.md` | Full Azure instructions |

@@ -284,3 +284,177 @@ def load_scenarios() -> list[Scenario]:
         _multi_fact(),
         _no_memory_needed(),
     ]
+
+
+# --- Phase 2: Long scenario generators ---
+
+EXTENDED_CHIT_CHAT = CHIT_CHAT + [
+    "I've been thinking about learning a new language.",
+    "That's exciting! Which language?",
+    "Maybe Spanish or Japanese.",
+    "Both are great choices with lots of resources available.",
+    "Do you have any travel plans coming up?",
+    "I'm thinking about visiting Portugal in the fall.",
+    "I heard Lisbon is beautiful that time of year.",
+    "The weather should be perfect, not too hot.",
+    "What's your favorite type of cuisine?",
+    "I really enjoy Thai food, especially pad thai.",
+    "There's a great Thai place near my office.",
+    "I should check it out, thanks for the recommendation.",
+    "Have you been following the tech news lately?",
+    "I saw that new chip announcement, pretty impressive.",
+    "The performance gains are significant this generation.",
+    "Competition is really driving innovation right now.",
+    "How's your fitness routine going?",
+    "I've been running three times a week.",
+    "That's great consistency! Morning or evening?",
+    "Usually mornings, it helps me wake up.",
+    "Do you listen to any podcasts?",
+    "I love true crime podcasts and tech interviews.",
+    "Any specific ones you'd recommend?",
+    "There are a few good ones on Spotify.",
+    "What's your opinion on remote work?",
+    "I think hybrid is the best balance personally.",
+    "I agree, a few days in office keeps the team connected.",
+    "But the flexibility of working from home is nice too.",
+    "Are you watching any TV series currently?",
+    "Just started a new drama series, really gripping.",
+    "I need something new to watch, I'll check that out.",
+    "Let me know what you think of it!",
+    "How do you handle stress at work?",
+    "I try to take short breaks and go for walks.",
+    "That sounds healthy, I should do more of that.",
+    "Even 5 minutes outside makes a difference.",
+    "What's the last book you finished?",
+    "A biography about a famous scientist.",
+    "Non-fiction is great for learning new perspectives.",
+    "Exactly, I try to alternate between fiction and non-fiction.",
+]
+
+
+def _generate_long_conversation(
+    total_turns: int,
+    key_fact_text: str,
+    key_fact_turn: int,
+    key_fact_role: str = "assistant",
+    seed: int = 42,
+) -> list[Message]:
+    """Generate a long conversation with one important fact at a specific turn."""
+    rng = random.Random(seed)
+    conversation = []
+
+    for turn in range(1, total_turns + 1):
+        role = "user" if turn % 2 == 1 else "assistant"
+
+        if turn == key_fact_turn:
+            conversation.append(Message(
+                text=key_fact_text,
+                role=key_fact_role,
+                turn=turn,
+                important=True,
+            ))
+        else:
+            text = rng.choice(EXTENDED_CHIT_CHAT)
+            conversation.append(Message(text=text, role=role, turn=turn))
+
+    return conversation
+
+
+def _long_booking_500() -> Scenario:
+    """500-turn conversation with booking code at turn 25."""
+    conversation = _generate_long_conversation(
+        total_turns=500,
+        key_fact_text="Your hotel reservation is confirmed. Confirmation number: HTL-2847193. Check-in is March 15.",
+        key_fact_turn=25,
+        seed=600,
+    )
+    conversation.append(Message(
+        text="What was my hotel confirmation number?",
+        role="user", turn=501,
+    ))
+
+    return Scenario(
+        id="long_booking_500",
+        description="Hotel confirmation HTL-2847193 at turn 25 in a 500-turn conversation.",
+        conversation=conversation,
+        seed_memories=[
+            ("Hotel reservation confirmation number: HTL-2847193, check-in March 15, downtown location",
+             {"source_session": "booking", "importance": 1.0}),
+        ],
+        query="What was my hotel confirmation number?",
+        key_fact="HTL-2847193",
+    )
+
+
+def _long_medical_750() -> Scenario:
+    """750-turn conversation with allergy info at turn 50."""
+    conversation = _generate_long_conversation(
+        total_turns=750,
+        key_fact_text="Important: Patient has a severe allergy to penicillin. This must be noted for all prescriptions.",
+        key_fact_turn=50,
+        key_fact_role="assistant",
+        seed=700,
+    )
+    conversation.append(Message(
+        text="Do I have any drug allergies on file?",
+        role="user", turn=751,
+    ))
+
+    return Scenario(
+        id="long_medical_750",
+        description="Penicillin allergy noted at turn 50 in a 750-turn conversation.",
+        conversation=conversation,
+        seed_memories=[
+            ("Patient allergy: severe reaction to penicillin. Noted in medical consultation.",
+             {"source_session": "medical_intake", "importance": 1.0}),
+        ],
+        query="Do I have any drug allergies on file?",
+        key_fact="penicillin",
+    )
+
+
+def _long_project_1000() -> Scenario:
+    """1000-turn conversation with project deadline at turn 100."""
+    conversation = _generate_long_conversation(
+        total_turns=1000,
+        key_fact_text="The project deadline for Project Atlas is December 15, 2026. All deliverables must be submitted by then.",
+        key_fact_turn=100,
+        key_fact_role="assistant",
+        seed=800,
+    )
+    conversation.append(Message(
+        text="When is the Project Atlas deadline?",
+        role="user", turn=1001,
+    ))
+
+    return Scenario(
+        id="long_project_1000",
+        description="Project Atlas deadline (Dec 15 2026) at turn 100 in a 1000-turn conversation.",
+        conversation=conversation,
+        seed_memories=[
+            ("Project Atlas deadline: December 15, 2026. All deliverables due.",
+             {"source_session": "project_planning", "importance": 1.0}),
+        ],
+        query="When is the Project Atlas deadline?",
+        key_fact="December 15",
+    )
+
+
+def load_scenarios(include_long: bool = False) -> list[Scenario]:
+    """Load test scenarios. Set include_long=True for Phase 2 scale scenarios."""
+    scenarios = [
+        _flight_booking_memory(),
+        _support_original_problem(),
+        _preference_recall(),
+        _cross_session_name(),
+        _irrelevant_heavy(),
+        _multi_fact(),
+        _no_memory_needed(),
+    ]
+    if include_long:
+        scenarios.extend([
+            _long_booking_500(),
+            _long_medical_750(),
+            _long_project_1000(),
+        ])
+    return scenarios
