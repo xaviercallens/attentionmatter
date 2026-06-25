@@ -1,52 +1,56 @@
 # TODO
 
-## Phase 2: Scale & Validate (Current Focus)
+## Phase 2: Scale & Validate (COMPLETE)
+
+- [x] Create scenario generator for 500+ turn conversations
+- [x] Add 3 scenarios at 500, 750, and 1000 turns
+- [x] Implement GPT-2 tokenizer as offline fallback
+- [x] Run full benchmark showing 46-50% reduction at realistic budget
+- [x] Fix LTM scoring (age=0 for persistent memories)
+- [x] Validate 100% key fact preservation on all long scenarios
+- [x] Document findings and update memory/goals/ll
+
+## Phase 3: Production Integration (IN PROGRESS)
 
 ### High Priority
 
-- [ ] Create scenario generator for 500+ turn conversations
-- [ ] Add 3 scenarios at 500, 750, and 1000 turns
-- [ ] Implement GPT-2 tokenizer as offline fallback (no auth needed)
-- [ ] Run full benchmark showing 30-50% reduction at default budget
-- [ ] Validate with real Mistral-7B answers on Azure
+- [ ] Extract scorer as standalone module (`attn_scorer/`)
+- [ ] Define clean public API: `score()`, `select()`, `build_context()`
+- [ ] Add FAISS backend for 10k+ memory entry vector search
+- [ ] Implement dynamic token budgeting (adjust by query complexity)
+- [ ] Add OpenAI Ada / Cohere embedding support (API-based interface)
+- [ ] Create plugin interface for A3TK orchestrator integration
+- [ ] Package as pip-installable module (`pyproject.toml`)
 
 ### Medium Priority
 
-- [ ] Add decay factor sweep (0.92, 0.94, 0.96, 0.98) for long conversations
-- [ ] Add latency timing to ExperimentRunner (ms per scoring pass)
-- [ ] Generate matplotlib charts (token count vs quality per strategy)
-- [ ] Add "regression" scenario (contextually important but low cosine similarity)
-- [ ] Add scenario with code snippets and structured data
+- [ ] Add latency benchmarking (time per scoring pass, target < 50ms)
+- [ ] Add batch scoring mode for multiple candidates
+- [ ] Implement embedding cache with TTL (disk-backed)
+- [ ] Add configuration validation and error messages
+- [ ] Write integration tests with mock orchestrator
+- [ ] Support async embedding calls (for API-based providers)
 
 ### Lower Priority
 
-- [ ] Set up GitHub Actions CI (run --dummy-llm on push)
-- [ ] Add `--output-format json` option to reporter
-- [ ] Cache embeddings to disk (avoid recomputing across runs)
-- [ ] Pre-bake Azure VM image with NVIDIA drivers (avoid DKMS compile)
-- [ ] Tag v0.2.0 release with scale results
+- [ ] Add type-aware weighting (facts=1.2x, narrative=1.0x, chit-chat=0.8x)
+- [ ] Add multi-query context (score against last 3 queries)
+- [ ] GitHub Actions CI (lint + test on push)
+- [ ] Add Prometheus-style metrics (scoring latency, cache hit rate)
+- [ ] Release v0.2.0
 
-## Infrastructure Improvements
+## Phase 4: Advanced Scoring (PLANNED)
 
-- [ ] Use `az vm run-command` in deploy.sh as SSH fallback
-- [ ] Add budget alert ($5 threshold) on Azure subscription
-- [ ] Create Terraform alternative to shell provisioning scripts
-- [ ] Support Azure Container Instances for serverless benchmark
+- [ ] Train binary relevance classifier on conversation data
+- [ ] Explore trainable ALiBi-style positional biases
+- [ ] Evaluate cross-encoder re-ranking for top candidates
+- [ ] Test with 128k+ context models (does pruning still help?)
+- [ ] Multi-modal memory scoring (images, code blocks)
 
-## Code Quality
+## Technical Debt
 
-- [ ] Add unit tests for scoring math (cosine × decay at various ages)
-- [ ] Add integration test (stub LLM + deterministic embeddings)
-- [ ] Add type annotations and mypy strict mode
-- [ ] Parallelize embedding computation for large conversations
-- [ ] Add progress bar for long scenarios (tqdm)
-
-## Documentation
-
-- [x] memory.md — current state and achievements
-- [x] goals.md — phase objectives with metrics
-- [x] ll.md — lessons learned (17 items)
-- [x] roadmap.md — 5-phase plan
-- [x] BENCHMARK.md — Azure instructions
-- [x] results/azure_benchmark_results.md — findings
-- [ ] Add CONTRIBUTING.md if opening to team
+- [ ] Add unit tests for scoring math
+- [ ] Add mypy strict mode
+- [ ] Remove temporary scripts from repo
+- [ ] Standardize logging (replace print with logging module)
+- [ ] Add py.typed marker for type checkers

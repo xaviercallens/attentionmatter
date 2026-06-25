@@ -77,12 +77,17 @@ order for the prompt to make sense to the LLM. Presenting messages out of order
 confuses the model. The Adaptive strategy sorts selected history by turn index before
 assembly.
 
-### 11. LTM entries need artificial aging
+### 11. LTM entries must NOT be penalized by conversation length
 
-Memory entries from prior sessions are semantically relevant but shouldn't dominate
-over recent in-session context. Assigning them `age = len(stm) + 1000` ensures they
-get a heavy decay penalty, so they only appear in the prompt when their cosine
-similarity to the query is very high (i.e., directly relevant).
+**Critical fix in Phase 2:** Originally LTM entries had `age = len(stm) + offset`
+which meant `0.95^800 ≈ 0` — effectively zeroing out all memory entries in long
+conversations. The fix: LTM entries get `age=0` (no decay penalty) because they
+already passed relevance filtering via vector search top-K. Only conversation
+messages need recency decay.
+
+This is a fundamental architectural insight: **persistent knowledge and ephemeral
+conversation need different scoring models.** Decay applies to conversation turns
+(recency matters). Memories are durable — their relevance is purely semantic.
 
 ### 12. Brute-force is fine at PoC scale
 
@@ -90,7 +95,7 @@ With < 200 candidates per scenario, brute-force cosine similarity over numpy arr
 takes < 1ms. FAISS adds complexity without benefit until the memory store grows to
 10k+ entries. Premature optimization would have slowed development.
 
-## Azure & Infrastructure (NEW — Phase 1 Benchmark)
+## Azure & Infrastructure
 
 ### 13. Corporate SSH proxy blocks banner exchange
 
@@ -118,8 +123,7 @@ execution after setup completes.
 - Only one run-command per name at a time; delete old before creating new.
 - `az vm run-command invoke` (v1) ignores inline `--scripts` content on newer CLI
   versions (runs "sample script" instead). Always use v2 `create` API.
-- Output is truncated at ~4KB. For larger outputs, write to a file and cat it
-  in a separate command.
+- Output is truncated at ~4KB. For larger outputs, write to file and cat separately.
 
 ### 17. Token reduction scales predictably with conversation length
 
@@ -128,21 +132,41 @@ execution after setup completes.
 | 5-15 | 0.80 | 0% (fits in budget) |
 | 53-66 | 0.80 | 0% (fits in budget) |
 | 101 | 0.80 | 17.4% |
-| 66 | 0.08 | 34.6% |
-| 101 | 0.08 | 56.0% |
+| 500 | 0.50 | 46.3% |
+| 750 | 0.50 | 50.0% |
+| 1000 | 0.50 | 50.0% |
 
-**Conclusion:** The algorithm works. To demonstrate 30-50% reduction at default
-budget, we need 300-500+ turn conversations — which is realistic for production.
+## Phase 2 Insights
 
-## What We'd Do Differently
+### 18. GPT-2 tokenizer is the ideal offline fallback
 
-- **Start with longer scenarios (500+ turns):** Would have demonstrated token
-  reduction at the default budget without needing to artificially tighten it.
-- **Use GPT-2 tokenizer as default fallback:** Small, downloadable without auth,
-  gives realistic token counts (unlike the word×1.3 approximation).
-- **Include a "regression" scenario:** Where the Adaptive strategy might fail — e.g.,
-  the relevant info has low lexical similarity to the query but is contextually
-  important. This would highlight the ceiling of cosine-based scoring.
-- **Use `az vm run-command` from the start:** Don't fight SSH in corporate envs.
-- **Pre-bake NVIDIA drivers in a custom image:** Avoids the 10-min DKMS compile
-  every time. Build once, snapshot, reuse.
+GPT-2 tokenizer is ~1MB, doesn't need authentication, downloads from HuggingFace
+without issues, and produces token counts within 5-10% of production tokenizers
+for English text. Far more realistic than word×1.3 approximation.
+
+### 19. Long conversations are mostly filler
+
+A 1000-turn conversation with short messages (8-15 words each) only uses ~3200
+GPT-2 tokens. Production conversations with longer messages (50-100 words per turn)
+would use 10x more tokens. Our scenarios need longer per-message content to truly
+stress the budget at default ratio.
+
+### 20. The 50% reduction ceiling exists
+
+With budget_ratio=0.5, reduction converges to ~50% regardless of conversation
+length. This is because the adaptive strategy fills exactly to the budget boundary.
+The actual token saved depends on `(full_context - budget) / full_context`. For
+meaningful production savings, the full context must significantly exceed the budget.
+
+## What We'd Do Differently (Updated)
+
+- **Start with 500+ turn scenarios from day one.** Short scenarios don't exercise
+  the algorithm's value.
+- **Separate LTM scoring from the start.** The age-based decay should never have
+  applied to persistent memories. Different content types need different scoring
+  strategies — this should be a first-class design concern.
+- **Use GPT-2 tokenizer as the default** for `--dummy-llm` mode, not word×1.3.
+- **Make longer filler messages** (50-100 words each) to stress token budget at
+  default ratio without needing to artificially tighten it.
+- **Build the standalone scorer module first**, then wrap it in the experiment
+  pipeline — not the other way around.
