@@ -1,0 +1,45 @@
+name: Publish to PyPI
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  quality-gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install deps
+        run: pip install -e ".[dev]" numpy
+      - name: Lint
+        run: ruff check attn_scorer/ tests/
+      - name: Test
+        run: pytest tests/ -v --tb=short
+      - name: Smoke test
+        run: python examples/usage.py
+
+  build-and-publish:
+    needs: quality-gate
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install build tools
+        run: pip install build twine
+      - name: Build package
+        run: python -m build
+      - name: Validate package
+        run: twine check dist/*
+      - name: Test install
+        run: |
+          pip install dist/*.whl
+          python -c "from attn_scorer import Scorer, __version__; print(f'OK: {__version__}')"
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1

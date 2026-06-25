@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "attn-scorer"
-version = "1.0.0"
+version = "1.1.0"
 description = "Attention-inspired context scoring and selection for LLMs"
 readme = "README.md"
 license = {text = "MIT"}
@@ -34,6 +34,9 @@ local = [
 openai = [
     "openai>=1.0",
 ]
+async = [
+    "httpx>=0.25",
+]
 faiss = [
     "faiss-cpu>=1.7",
 ]
@@ -41,6 +44,7 @@ all = [
     "sentence-transformers>=2.2",
     "torch>=2.0",
     "openai>=1.0",
+    "httpx>=0.25",
     "faiss-cpu>=1.7",
 ]
 dev = [
