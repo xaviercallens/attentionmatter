@@ -1,0 +1,19 @@
+#cloud-config
+package_update: true
+packages:
+  - python3.11
+  - python3.11-venv
+  - python3-pip
+  - python3.11-dev
+  - git
+  - docker.io
+
+runcmd:
+  - ln -sf /usr/bin/python3.11 /usr/bin/python
+  - usermod -aG docker benchuser
+  - systemctl enable docker
+  - systemctl start docker
+  - pip3 install torch torchvision --index-url https://download.pytorch.org/whl/cu121
+  - pip3 install transformers sentence-transformers numpy bitsandbytes accelerate
+  - ubuntu-drivers install --gpgpu
+  - touch /tmp/cloud-init-done
