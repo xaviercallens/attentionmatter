@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import time
 from typing import Callable
 
@@ -9,6 +10,8 @@ import numpy as np
 
 from .config import ScorerConfig
 from .embeddings.base import EmbeddingBackend
+
+logger = logging.getLogger(__name__)
 from .embeddings.local import LocalEmbeddingBackend
 from .models import Candidate, ContextResult, ScoredCandidate
 from .vector_store.base import VectorStore

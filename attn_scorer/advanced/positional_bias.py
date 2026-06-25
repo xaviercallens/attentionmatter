@@ -39,17 +39,24 @@ class LearnablePositionalBias:
     def train(self, ages, targets, lr=0.001, epochs=200):
         ages_arr = np.array(ages, dtype=np.float32)
         tgt = np.array(targets, dtype=np.float32)
+        # Normalize ages to prevent overflow
+        age_scale = max(ages_arr.max(), 1.0)
+        ages_norm = ages_arr / age_scale
         for _ in range(epochs):
             pred = self.bias_batch(ages)
             error = pred - tgt
-            self._slope -= lr * 2 * np.mean(error * ages_arr)
-            self._offset -= lr * 2 * np.mean(error)
+            grad_slope = np.clip(2.0 * np.mean(error * ages_norm), -1.0, 1.0)
+            grad_offset = np.clip(2.0 * np.mean(error), -1.0, 1.0)
+            self._slope -= lr * grad_slope * age_scale
+            self._offset -= lr * grad_offset
             buckets = np.array([self._get_bucket(a) for a in ages])
             for b in range(self._num_buckets):
                 mask = buckets == b
                 if mask.any():
-                    self._corrections[b] -= lr * 2 * np.mean(error[mask])
-        return {"loss": float(np.mean((self.bias_batch(ages) - tgt) ** 2))}
+                    grad_b = np.clip(2.0 * np.mean(error[mask]), -1.0, 1.0)
+                    self._corrections[b] -= lr * grad_b
+        loss = float(np.mean((self.bias_batch(ages) - tgt) ** 2))
+        return {"loss": loss if not np.isnan(loss) else float("inf")}
 
     def save(self, path: str):
         with open(path, "w") as f:
